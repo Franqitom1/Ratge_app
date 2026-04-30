@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1a0d">
+<title>Ratge Quest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<script>
+  const manifestJSON = {
+    "name": "Ratge Quest",
+    "short_name": "Ratge",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0d1a0d",
+    "theme_color": "#0d1a0d",
+    "icons": [{
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230d1a0d'/><text y='24' font-size='24'>🐀</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }]
+  };
+  const stringManifest = JSON.stringify(manifestJSON);
+  const blob = new Blob([stringManifest], {type: 'application/json'});
+  const manifestURL = URL.createObjectURL(blob);
+  document.write('<link rel="manifest" href="' + manifestURL + '">');
+</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --green:#2ECC40;--green-dark:#1a7a25;--green-bright:#5DF56E;
+  --gold:#FFD700;--gold-dark:#B8860B; --bg:#0d1a0d;--bg2:#132013;--bg3:#1a2e1a;
+  --border:#2a4a2a;--border-bright:#3a6a3a; --red:#FF4136;--hp-red:#c0392b;
+  --orange:#FF851B; --text:#c8f0c8;--muted:#5a8a5a;
+  --color-blue:#3498DB; --color-purple:#9B59B6; --armor:#95A5A6; --armor-dark:#7F8C8D;
+}
+html,body{height:100%;width:100%;position:fixed;overflow:hidden;background:var(--bg);font-family:'VT323',monospace;color:var(--text);overscroll-behavior:none;}
+#app{display:flex;flex-direction:column;height:100%;max-width:430px;margin:0 auto;position:relative;overflow:hidden;background:var(--bg);}
+#app::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(46,204,64,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(46,204,64,0.04) 1px,transparent 1px);background-size:16px 16px;pointer-events:none;z-index:0;}
+
+.header{position:relative;z-index:10;background:var(--bg2);border-bottom:2px solid var(--border);padding:10px 12px 8px;flex-shrink:0;}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.game-title{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--green);text-shadow:0 0 8px var(--green-dark);}
+.stats-bar{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.stat-chip{background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:5px 7px;display:flex;align-items:center;gap:5px;}
+.stat-chip-icon{font-size:14px;line-height:1;}
+.stat-chip-info{flex:1;min-width:0;}
+.stat-chip-label{font-size:10px;color:var(--muted);display:block;line-height:1;}
+.stat-chip-val{font-size:18px;color:var(--text);line-height:1.1;transition:color 0.3s;}
+.stat-chip-val.gold{color:var(--gold);} .stat-chip-val.red{color:var(--red);} .stat-chip-val.orange{color:var(--orange);} .stat-chip-val.armor{color:var(--armor);}
+.hp-bar-outer, .xp-bar-outer{height:4px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:3px;overflow:hidden;}
+.hp-bar-inner{height:100%;background:var(--red);transition:width .4s, background .4s;}
+.xp-bar-inner{height:100%;background:var(--gold);transition:width .5s;}
+.armor-bar-inner{height:100%;background:var(--armor);transition:width .4s;}
+
+.ratge-wrap{position:relative;z-index:10;padding:8px 12px;background:var(--bg2);border-bottom:2px solid var(--border);display:flex;align-items:flex-end;gap:8px;flex-shrink:0;}
+.ratge-canvas{width:56px;height:56px;image-rendering:pixelated;flex-shrink:0;}
+.equipment-group{display:flex;flex-direction:column;gap:4px;}
+.equipped-slot{width:36px;height:36px;background:var(--bg3);border:2px solid var(--green-dark);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;transition:transform 0.2s;}
+.equipped-slot canvas{width:28px;height:28px;image-rendering:pixelated;}
+.equipped-slot::after{content:'ARMA';position:absolute;top:-6px;left:50%;transform:translateX(-50%);background:var(--bg2);font-family:'Press Start 2P',monospace;font-size:5px;padding:1px 3px;color:var(--gold);border:1px solid var(--gold-dark);border-radius:2px;}
+.equipped-slot.shield::after{content:'ESC';color:var(--armor);border-color:var(--armor-dark);}
+
+.player-stats-box { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 4px; border-radius: 4px; margin-left: 2px; flex-shrink: 0; min-width: 50px; }
+.player-stat-row { font-family: 'Press Start 2P', monospace; font-size: 7px; color: var(--gold); margin-bottom: 4px;}
+.player-stat-val { font-size: 14px; font-family: 'VT323', monospace; color: var(--text); transition:color 0.3s;}
+
+.bubble{flex:1;background:var(--bg3);border:2px solid var(--green-dark);border-radius:0 8px 8px 8px;padding:8px 10px;position:relative;min-height:40px;transition:border-color 0.3s;}
+.bubble.dead{border-color:var(--border-bright);} .bubble.dead::before{border-right-color:var(--border-bright);}
+.bubble::before{content:'';position:absolute;left:-8px;bottom:10px;border:4px solid transparent;border-right-color:var(--green-dark);transition:border-color 0.3s;}
+.bubble-text{font-size:15px;color:var(--text);line-height:1.2;}
+.bubble-name{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--green);margin-bottom:4px;display:block;}
+
+.nav-tabs{position:relative;z-index:10;display:flex;background:var(--bg2);border-top:2px solid var(--border);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom);}
+.tab-btn{flex:1;padding:12px 4px;background:transparent;border:none;font-family:'Press Start 2P',monospace;font-size:7px;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;border-top:3px solid transparent;transition:all 0.2s;}
+.tab-btn.active{color:var(--green);border-top-color:var(--green);background:rgba(46,204,64,0.05);}
+.tab-btn.disabled{opacity:0.3;pointer-events:none;}
+.tab-icon{font-size:18px;line-height:1;transition:transform 0.2s;}
+.tab-btn:active .tab-icon{transform:scale(0.8);}
+
+/* Scroll padding incrementado para evitar barra nativa */
+.screen{display:none;flex:1;overflow-y:auto;padding:12px 12px 90px 12px;position:relative;z-index:5;}
+.screen.active{display:flex;flex-direction:column;gap:10px;}
+.section-title{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--muted);margin:10px 0 4px 0;}
+
+.date-nav{display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:2px solid var(--border);border-radius:6px;padding:6px 12px;margin-bottom:4px;}
+.date-nav button{background:none;border:none;color:var(--green);font-family:'Press Start 2P',monospace;font-size:10px;padding:8px;cursor:pointer;}
+.date-nav span{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--text);}
+
+.task-card{background:var(--bg2);border:2px solid var(--border);border-left-width:6px;border-radius:6px;display:flex;flex-direction:column;padding:10px;margin-bottom:6px;transition:all 0.3s ease;}
+.task-card.status-completed{opacity:0.5;border-left-color:var(--green) !important;transform:scale(0.98);}
+.task-card.status-completed .task-name{text-decoration:line-through;color:var(--muted);}
+.task-card.status-failed{opacity:0.5;border-left-color:var(--red) !important;background:rgba(255,65,54,0.05);}
+.task-card.status-failed .task-name{text-decoration:line-through;color:var(--red);}
+.task-main{display:flex;align-items:center;gap:10px;width:100%;}
+.task-body{flex:1;min-width:0;}
+.task-name{font-size:20px;line-height:1.2;color:var(--text);display:block;transition:color 0.3s;}
+.task-time{font-size:14px;color:var(--gold);margin-left:6px;}
+.task-meta{display:flex;gap:6px;align-items:center;margin-top:4px;}
+.diff-badge{font-family:'Press Start 2P',monospace;font-size:7px;padding:2px 5px;border-radius:3px;}
+.diff-easy{background:rgba(46,204,64,0.15);color:var(--green);border:1px solid rgba(46,204,64,0.3);}
+.diff-medium{background:rgba(255,213,0,0.12);color:var(--gold);border:1px solid rgba(255,213,0,0.3);}
+.diff-hard{background:rgba(255,65,54,0.12);color:var(--red);border:1px solid rgba(255,65,54,0.3);}
+.diff-habit{background:rgba(52, 152, 219, 0.15);color:#3498DB;border:1px solid rgba(52, 152, 219, 0.3);}
+.task-reward{font-size:15px;color:var(--gold);}
+.task-actions{display:flex;gap:4px;margin-top:8px;justify-content:flex-end;}
+.action-btn{background:var(--bg3);border:1px solid var(--border);border-radius:4px;width:32px;height:30px;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;transition:transform 0.1s;}
+.action-btn:active{transform:scale(0.85);}
+.action-btn.btn-done{color:var(--green);} .action-btn.btn-fail{color:var(--red);} .action-btn.btn-edit{color:var(--gold);} .action-btn.btn-undo{color:var(--orange);}
+.empty-box{border:2px dashed var(--border);border-radius:6px;padding:28px;text-align:center;color:var(--muted);font-size:18px;}
+.add-btn-large{background:var(--bg2);border:2px dashed var(--border-bright);color:var(--green);border-radius:6px;padding:14px;font-family:'Press Start 2P',monospace;font-size:8px;text-align:center;cursor:pointer;margin-top:8px;transition:background 0.2s;}
+.add-btn-large:active{background:var(--bg3);}
+
+/* FORM */
+.form-panel{background:var(--bg2);border:2px solid var(--border);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:12px;}
+.form-panel label{font-family:'Press Start 2P',monospace;font-size:7px;color:var(--muted);margin-top:4px;}
+.form-input{background:var(--bg3);border:1px solid var(--border-bright);border-radius:4px;padding:10px;font-family:'VT323',monospace;font-size:18px;color:var(--text);width:100%;outline:none;}
+.type-toggle{display:flex;border:2px solid var(--border-bright);border-radius:4px;overflow:hidden;}
+.type-btn{flex:1;padding:12px;background:var(--bg2);border:none;color:var(--muted);font-family:'Press Start 2P',monospace;font-size:7px;cursor:pointer;transition:background 0.2s;}
+.type-btn.active{background:var(--color-blue);color:#fff;}
+.week-selector{display:flex;justify-content:space-between;}
+.day-btn{width:34px;height:34px;border-radius:4px;border:1px solid var(--border-bright);display:flex;align-items:center;justify-content:center;font-family:'VT323',monospace;font-size:18px;color:var(--muted);cursor:pointer;transition:all 0.2s;}
+.day-btn.active{background:var(--color-blue);color:#fff;border-color:var(--color-blue);}
+.color-picker{display:flex;gap:10px;}
+.color-opt{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform 0.2s;}
+.color-opt.selected{border-color:#fff;transform:scale(1.1);}
+.form-actions{display:flex;gap:8px;margin-top:10px;}
+.btn-primary{flex:1;background:var(--green-dark);border:2px solid var(--green);border-radius:4px;padding:12px;font-family:'Press Start 2P',monospace;font-size:8px;color:var(--green);cursor:pointer;text-align:center;transition:filter 0.2s;}
+.btn-primary:active{filter:brightness(1.2);}
+.btn-danger{background:var(--hp-red);border-color:var(--red);color:#fff;}
+.btn-secondary{background:var(--bg3);border-color:var(--border);color:var(--muted);}
+
+/* SHOP */
+.shop-gold-display{text-align:center;font-family:'Press Start 2P',monospace;font-size:10px;color:var(--gold);padding:10px;background:var(--bg2);border:2px solid var(--gold-dark);border-radius:6px; margin-bottom:10px;}
+.shop-category{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--muted);margin:12px 0 6px 0; border-bottom:1px solid var(--border); padding-bottom:4px;}
+.weapons-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.weapon-card{background:var(--bg2);border:2px solid var(--border);border-radius:6px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;position:relative;transition:transform 0.1s;}
+.weapon-card:active{transform:scale(0.95);}
+.weapon-card.owned{border-color:var(--green);} .weapon-card.equipped{border-color:var(--gold);background:rgba(255,215,0,0.05);}
+.weapon-card.consumable{border-color:var(--hp-red);background:rgba(192,57,43,0.05);} .weapon-card.armor{border-color:var(--armor);background:rgba(149,165,166,0.05);} .weapon-card.resurrect{border-color:#9B59B6;background:rgba(155,89,182,0.05);}
+.weapon-card.upgrade{border-color:var(--color-blue);background:rgba(52, 152, 219,0.05);}
+.weapon-pixel{width:64px;height:64px;image-rendering:pixelated;}
+.weapon-name{font-family:'Press Start 2P',monospace;font-size:7px;color:var(--text);text-align:center;line-height:1.5;}
+.weapon-cost{font-size:18px;color:var(--gold);} .weapon-atk{font-size:15px;color:var(--green);} .weapon-heal{font-size:15px;color:var(--red);} .weapon-arm{font-size:15px;color:var(--armor);}
+.owned-badge{position:absolute;top:4px;right:4px;background:var(--green-dark);border:1px solid var(--green);border-radius:3px;font-family:'Press Start 2P',monospace;font-size:6px;color:var(--green);padding:2px 4px;}
+.equipped-badge{background:rgba(255,215,0,0.2);border-color:var(--gold);color:var(--gold);}
+
+/* BOSS ARENA */
+.arena-wrap{display:flex;flex-direction:column;flex:1 0 auto;background:var(--bg2);border:2px solid var(--border);border-radius:8px;overflow:hidden;position:relative;margin-bottom:20px;}
+.arena-header{background:var(--bg3);border-bottom:2px solid var(--border);padding:8px;text-align:center;}
+.boss-title{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--color-purple);text-shadow:0 0 10px rgba(155,89,182,0.5);}
+.boss-level{font-family:'Press Start 2P',monospace;font-size:6px;color:var(--muted);margin-top:4px;}
+.arena-stage{display:flex;justify-content:space-between;align-items:flex-end;padding:20px;flex:1 0 auto;min-height:160px;position:relative;background-image:radial-gradient(circle at center,var(--bg3) 0%,transparent 70%);}
+.fighter{display:flex;flex-direction:column;align-items:center;position:relative;}
+.fighter-sprite{width:80px;height:80px;position:relative;}
+.fighter-canvas{width:100%;height:100%;image-rendering:pixelated;transition:transform 0.1s;}
+.health-bar-container{width:70px;height:8px;background:rgba(0,0,0,0.5);border:2px solid var(--border-bright);border-radius:4px;margin-bottom:8px;position:relative;overflow:hidden;}
+.health-bar-fill{height:100%;background:var(--hp-red);transition:width 0.2s;}
+.armor-bar-fill{height:100%;background:var(--armor);position:absolute;left:0;top:0;opacity:0.8;transition:width 0.2s;}
+.fighter-name{font-family:'Press Start 2P',monospace;font-size:6px;color:var(--muted);margin-bottom:4px;}
+
+@keyframes idleBreathe { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-4px);} }
+@keyframes lungeRight { 0%{transform:translateX(0);} 50%{transform:translateX(40px);} 100%{transform:translateX(0);} }
+@keyframes lungeLeft { 0%{transform:translateX(0);} 50%{transform:translateX(-40px);} 100%{transform:translateX(0);} }
+@keyframes takeHit { 0%{filter:brightness(1);transform:translateX(0);} 20%{filter:brightness(2) drop-shadow(0 0 10px red);transform:translateX(-5px);} 80%{transform:translateX(5px);} 100%{filter:brightness(1);transform:translateX(0);} }
+@keyframes floatDmg { 0%{opacity:1;transform:translateY(0) scale(1);} 100%{opacity:0;transform:translateY(-50px) scale(1.5);} }
+@keyframes bossDeathAnim { 0%{transform:scale(1);filter:brightness(1) sepia(0);opacity:1;} 50%{transform:scale(1.2);filter:brightness(2) sepia(1) hue-rotate(-50deg);opacity:0.8;} 100%{transform:scale(0.5) translateY(50px);filter:brightness(0);opacity:0;} }
+@keyframes ratgeDeathAnim { 0%{transform:scale(1);filter:grayscale(0);} 50%{transform:scale(0.9) rotate(-15deg);filter:grayscale(0.8);} 100%{transform:scale(1) translateY(15px) rotate(-90deg);filter:grayscale(1);} }
+
+.anim-idle { animation: idleBreathe 2s ease-in-out infinite; }
+.anim-atk-r { animation: lungeRight 0.3s cubic-bezier(0.175,0.885,0.32,1.275); }
+.anim-atk-b { animation: lungeLeft 0.3s cubic-bezier(0.175,0.885,0.32,1.275); }
+.anim-hit { animation: takeHit 0.3s ease; }
+.anim-boss-death { animation: bossDeathAnim 1.5s forwards ease-in; }
+.anim-ratge-death { animation: ratgeDeathAnim 1.5s forwards ease-in; }
+
+.float-text{position:absolute;font-family:'Press Start 2P',monospace;font-size:12px;pointer-events:none;z-index:100;animation:floatDmg 1s cubic-bezier(0.215,0.610,0.355,1) forwards;text-shadow:2px 2px 0 #000;left:50%;top:-10px;transform:translateX(-50%);}
+
+.boss-intel-box {background: var(--bg3); border-top: 2px solid var(--border); padding: 10px; display: flex; flex-direction: column; gap: 6px;}
+.boss-intel-row {display: flex; justify-content: space-between; font-family: 'Press Start 2P', monospace; font-size: 7px; color: var(--muted);}
+
+.boss-timer-box{background:var(--bg3);border-top:2px solid var(--border);padding:10px;text-align:center;}
+.boss-timer-label{font-family:'Press Start 2P',monospace;font-size:6px;color:var(--muted);margin-bottom:6px;}
+.boss-timer-value{font-family:'VT323',monospace;font-size:24px;color:var(--gold);}
+.resolve-btn{background:var(--color-purple);border:2px solid #8E44AD;color:#fff;font-family:'Press Start 2P',monospace;font-size:10px;padding:14px;border-radius:6px;width:100%;cursor:pointer;margin-top:10px;animation:pulseBtn 1.5s infinite;}
+@keyframes pulseBtn{0%{transform:scale(1);}50%{transform:scale(1.02);}100%{transform:scale(1);}}
+.battle-log{width:100%;height:100px;background:#000;border:2px solid var(--border);border-radius:6px;padding:6px;overflow-y:auto;text-align:left;font-size:14px;color:var(--muted);display:none;flex-direction:column;gap:4px;margin-top:8px;}
+.log-ratge{color:var(--green);} .log-boss{color:var(--red);} .log-crit{color:var(--gold);font-weight:bold;}
+
+.battle-result-overlay { position: absolute; inset: 0; background: rgba(13,26,13,0.95); z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+
+/* NOTIFICATIONS & TOASTS */
+.notif-panel{background:var(--bg2);border:2px solid var(--border);border-radius:6px;padding:12px;margin-bottom:10px;}
+.notif-panel h3{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--green);margin-bottom:10px;}
+.notif-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);}
+.notif-label{font-size:15px;color:var(--text);}
+.notif-time{font-size:15px;color:var(--gold);}
+.notif-toggle{background:var(--border);border:2px solid var(--border-bright);border-radius:12px;width:40px;height:22px;position:relative;cursor:pointer;}
+.notif-toggle.on{background:var(--green-dark);border-color:var(--green);}
+.notif-toggle::after{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:var(--muted);top:2px;left:2px;transition:left 0.2s;}
+.notif-toggle.on::after{background:var(--green);left:22px;}
+.time-input{background:var(--bg3);border:1px solid var(--border-bright);border-radius:4px;padding:3px 6px;font-family:'VT323',monospace;font-size:16px;color:var(--gold);width:90px;outline:none;text-align:center;}
+
+.toast-wrap{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:999;display:flex;flex-direction:column;gap:6px;pointer-events:none;width:90%;max-width:380px;}
+.toast{background:rgba(13,26,13,0.97);border:2px solid var(--green);border-radius:6px;padding:8px 12px;font-family:'Press Start 2P',monospace;font-size:7px;color:var(--green);text-align:center;line-height:1.6;animation:toastIn .25s ease,toastOut .3s ease 2.2s forwards;}
+.toast.gold{border-color:var(--gold);color:var(--gold);} .toast.red{border-color:var(--red);color:var(--red);}
+@keyframes toastIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastOut{to{opacity:0;transform:translateY(-8px)}}
+.screen::-webkit-scrollbar, .battle-log::-webkit-scrollbar{width:4px;}
+.screen::-webkit-scrollbar-track, .battle-log::-webkit-scrollbar-track{background:transparent;}
+.screen::-webkit-scrollbar-thumb, .battle-log::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+@keyframes wiggle{0%,100%{transform:rotate(0deg);}25%{transform:rotate(-8deg);}75%{transform:rotate(8deg);}}
+.ratge-wiggle{animation:wiggle .35s ease;}
+.text-red{color:var(--red);} .text-green{color:var(--green);} .text-gold{color:var(--gold);}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-top"><div class="game-title">⚔ RATGE QUEST</div></div>
+    <div class="stats-bar">
+      <div class="stat-chip"><div class="stat-chip-icon">💰</div><div class="stat-chip-info"><span class="stat-chip-label">ORO</span><span class="stat-chip-val gold" id="hdrGold">0</span><div class="xp-bar-outer"><div class="xp-bar-inner" id="xpBar" style="width:0%"></div></div></div></div>
+      <div class="stat-chip"><div class="stat-chip-icon">🔥</div><div class="stat-chip-info"><span class="stat-chip-label">RACHA</span><span class="stat-chip-val orange" id="hdrStreak">0</span><div class="xp-bar-outer" style="background:rgba(255,133,27,0.15)"><div class="xp-bar-inner" id="streakBar" style="width:0%;background:var(--orange)"></div></div></div></div>
+      <div class="stat-chip"><div class="stat-chip-icon">❤️</div><div class="stat-chip-info"><span class="stat-chip-label" id="hdrHpLabel">SALUD</span><span class="stat-chip-val red" id="hdrHp">100</span><div class="hp-bar-outer"><div class="hp-bar-inner" id="hpBar" style="width:100%"></div></div></div></div>
+      <div class="stat-chip"><div class="stat-chip-icon">🛡️</div><div class="stat-chip-info"><span class="stat-chip-label">ARMADURA</span><span class="stat-chip-val armor" id="hdrArmor">0</span><div class="hp-bar-outer" style="background:rgba(149,165,166,0.15)"><div class="armor-bar-inner" id="armorBar" style="width:0%"></div></div></div></div>
+    </div>
+  </div>
+
+  <div class="ratge-wrap">
+    <canvas class="ratge-canvas" id="ratgeCanvas" width="56" height="56"></canvas>
+    <div class="equipment-group">
+      <div class="equipped-slot" title="Arma Equipada"><canvas id="equippedCanvas" width="64" height="64"></canvas></div>
+      <div class="equipped-slot shield" title="Escudo Equipado"><canvas id="equippedShieldCanvas" width="64" height="64"></canvas></div>
+    </div>
+    
+    <div class="player-stats-box">
+      <div class="player-stat-row">ATK: <span class="player-stat-val" id="playerAtkUI">2</span></div>
+      <div class="player-stat-row">HP:  <span class="player-stat-val text-red" id="playerHpMaxUI">100</span></div>
+    </div>
+
+    <div class="bubble" id="ratgeBubbleBox"><span class="bubble-name" id="ratgeNameUI">RATGE:</span><span class="bubble-text" id="ratgeSpeech">¡Squeak! Soy Ratge.</span></div>
+  </div>
+
+  <!-- Contenido desplazable -->
+  <!-- SCREEN TASKS -->
+  <div class="screen active" id="screen-tasks">
+    <div class="date-nav"><button type="button" id="btnPrevDay">◄</button><span id="dateDisplay">Hoy</span><button type="button" id="btnNextDay">►</button></div>
+    <div id="habitsContainer"><div class="section-title">HÁBITOS DIARIOS</div><div id="habitList"></div></div>
+    <div class="section-title" style="margin-top: 8px;">QUESTS ÚNICAS</div><div id="taskList"></div>
+    <button type="button" class="add-btn-large" id="btnGoToForm">+ NUEVA MISIÓN / HÁBITO</button>
+  </div>
+
+  <!-- SCREEN FORM -->
+  <div class="screen" id="screen-form">
+    <div class="section-title" id="formTitle">NUEVA MISIÓN</div>
+    <div class="form-panel">
+      <div class="type-toggle" id="formTypeContainer"><button type="button" class="type-btn active" data-type="habit">Hábito</button><button type="button" class="type-btn" data-type="quest">Quest Única</button></div>
+      <label>Nombre de la misión</label><input type="text" id="formName" class="form-input" placeholder="Ej: Ejercicio, Leer...">
+      <div id="formWrapDiff" style="display:none;"><label>Dificultad</label><select id="formDiff" class="form-input"><option value="easy">Fácil 😊 (+2💰)</option><option value="medium" selected>Normal ⚔️ (+5💰)</option><option value="hard">Épica 💀 (+12💰)</option></select></div>
+      <div id="formWrapDate" style="display:none;"><label>Fecha</label><input type="date" id="formDate" class="form-input"></div>
+      <div id="formWrapDays"><label>Días de repetición</label><div class="week-selector"><div class="day-btn" data-day="1">L</div><div class="day-btn" data-day="2">M</div><div class="day-btn" data-day="3">X</div><div class="day-btn" data-day="4">J</div><div class="day-btn" data-day="5">V</div><div class="day-btn" data-day="6">S</div><div class="day-btn" data-day="0">D</div></div></div>
+      <label>Horario (Opcional)</label><input type="time" id="formTime" class="form-input">
+      <label>Color</label>
+      <div class="color-picker"><div class="color-opt selected" data-color="#2a4a2a" style="background:#2a4a2a"></div><div class="color-opt" data-color="#3498DB" style="background:#3498DB"></div><div class="color-opt" data-color="#9B59B6" style="background:#9B59B6"></div><div class="color-opt" data-color="#FF851B" style="background:#FF851B"></div><div class="color-opt" data-color="#FF4136" style="background:#FF4136"></div></div>
+    </div>
+    <div class="form-actions" id="standardActions"><button type="button" class="btn-primary btn-danger" id="btnFormDelete" style="display:none;">ELIMINAR</button><button type="button" class="btn-primary btn-secondary" id="btnFormCancel">CANCELAR</button><button type="button" class="btn-primary" id="btnFormSave">GUARDAR</button></div>
+    <div class="form-panel" id="deleteConfirmActions" style="display:none; border-color:var(--red); margin-top:10px;"><p style="color:var(--text); font-size:16px; text-align:center; margin-bottom:8px;">¿Cómo deseas eliminar este hábito?</p><button type="button" class="btn-primary btn-secondary" id="btnDeleteToday" style="margin-bottom:6px;">SOLO ESTE DÍA</button><button type="button" class="btn-primary btn-danger" id="btnDeleteAll" style="margin-bottom:6px;">TODO EL HÁBITO</button><button type="button" class="btn-primary" id="btnDeleteCancel">CANCELAR</button></div>
+  </div>
+
+  <!-- SCREEN SHOP -->
+  <div class="screen" id="screen-shop">
+    <div class="shop-gold-display">💰 ORO: <span id="shopGold">0</span></div>
+    
+    <div class="shop-category">CONSUMIBLES Y MEJORAS</div>
+    <div class="weapons-grid" id="shopConsumables"></div>
+
+    <div class="shop-category">ARMAS (Solo 1 Equipada)</div>
+    <div class="weapons-grid" id="shopWeapons"></div>
+
+    <div class="shop-category">DEFENSA (Solo 1 Equipada)</div>
+    <div class="weapons-grid" id="shopArmor"></div>
+  </div>
+
+  <!-- SCREEN BOSS -->
+  <div class="screen" id="screen-boss">
+    <div class="arena-wrap">
+      <div class="arena-header"><div class="boss-title" id="bossNameUI">REY HORMIGA</div><div class="boss-level">NIVEL <span id="bossLvlUI">1</span></div></div>
+      
+      <div class="arena-stage">
+        <div class="fighter" id="arenaRatge">
+          <div class="fighter-name">RATGE</div>
+          <div class="health-bar-container"><div class="health-bar-fill" id="arenaRatgeHp"></div><div class="armor-bar-fill" id="arenaRatgeArmor"></div></div>
+          <div class="fighter-sprite anim-idle" id="spriteRatgeWrap"><canvas id="arenaRatgeCanvas" class="fighter-canvas" width="96" height="96"></canvas></div>
+        </div>
+        <div class="fighter" id="arenaBoss">
+          <div class="fighter-name">JEFE</div>
+          <div class="health-bar-container" style="border-color: var(--color-purple);"><div class="health-bar-fill" id="arenaBossHp" style="background: var(--color-purple);"></div></div>
+          <div class="fighter-sprite anim-idle" id="spriteBossWrap"><canvas id="arenaBossCanvas" class="fighter-canvas" width="96" height="96"></canvas></div>
+        </div>
+      </div>
+      
+      <div class="boss-intel-box" id="bossIntelBox">
+        <div class="boss-intel-row"><span>SALUD (HP):</span><span id="intelHpUI" style="color:var(--hp-red)">0</span></div>
+        <div class="boss-intel-row"><span>DAÑO (ATK):</span><span id="intelAtkUI" style="color:var(--orange)">0</span></div>
+      </div>
+
+      <div class="boss-timer-box" id="bossTimerContainer">
+        <div id="bossTimerDisplay"><div class="boss-timer-label" id="bossTimerLabel">PRÓXIMA BATALLA EN:</div><div class="boss-timer-value" id="bossTimerUI">...</div></div>
+        <button type="button" class="resolve-btn" id="btnStartBattle" style="display:none; margin:0;">¡LUCHAR!</button>
+      </div>
+      <div class="battle-log" id="battleLog"></div>
+
+      <div class="battle-result-overlay" id="battleResultOverlay" style="display:none;">
+        <h2 id="battleResultTitle" style="font-family:'Press Start 2P',monospace;font-size:16px;margin-bottom:16px;">VICTORIA</h2>
+        <p id="battleResultDesc" style="font-size:16px;line-height:1.5;margin-bottom:24px;color:var(--text);"></p>
+        <button type="button" class="btn-primary" id="btnCloseResult" style="width:100%;padding:16px;font-size:12px;">ENTENDIDO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN NOTIFS -->
+  <div class="screen" id="screen-notifs">
+    <div class="notif-panel">
+      <h3>📲 PERMISOS & INSTALACIÓN</h3>
+      <p style="font-size:15px;color:var(--muted);line-height:1.6;margin-bottom:10px;">
+        Para recibir avisos, debes permitir las notificaciones. En APKs, el sistema puede pausarlas si la app se cierra por completo.
+      </p>
+      <div class="boss-intel-row" style="margin-bottom:12px;">
+        <span>Estado:</span><span id="notifStatus" style="color:var(--gold)">Verificando...</span>
+      </div>
+      <button type="button" class="btn-primary" id="reqNotifBtn" style="width:100%;">PERMITIR AVISOS</button>
+    </div>
+
+    <div class="notif-panel">
+      <h3>⏳ AVISOS RECURRENTES</h3>
+      <div class="notif-row">
+        <span class="notif-label">Frecuencia:</span>
+        <select class="time-input" id="intervalSelect" style="width: auto;">
+          <option value="1">Cada 1 h</option>
+          <option value="2">Cada 2 h</option>
+          <option value="4">Cada 4 h</option>
+          <option value="8">Cada 8 h</option>
+        </select>
+      </div>
+      <div class="notif-row">
+        <span class="notif-label">Activar Recurrentes</span>
+        <div class="notif-toggle" id="intervalToggle"></div>
+      </div>
+    </div>
+
+    <div class="notif-panel">
+      <h3>⏰ HORARIOS FIJOS</h3>
+      <div id="notifList"></div>
+    </div>
+  </div>
+
+  <!-- Navegación fijada al fondo -->
+  <nav class="nav-tabs" id="mainNav">
+    <button class="tab-btn active" data-tab="tasks"><span class="tab-icon">📜</span>MISIONES</button>
+    <button class="tab-btn" data-tab="shop"><span class="tab-icon">🗡️</span>TIENDA</button>
+    <button class="tab-btn" data-tab="boss" id="bossTabBtn"><span class="tab-icon">👾</span>JEFE</button>
+    <button class="tab-btn" data-tab="notifs"><span class="tab-icon">🔔</span>AVISOS</button>
+  </nav>
+
+</div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    const swCode = `self.addEventListener('install',(e)=>{self.skipWaiting();});self.addEventListener('activate',(e)=>{e.waitUntil(clients.claim());});self.addEventListener('fetch',(e)=>{});`;
+    const blob = new Blob([swCode], {type: 'application/javascript'});
+    navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(err => console.log('SW Reg Failed:', err));
+  }
+</script>
+
+<script>
+/* ============================================================
+   STATE & CORE
+============================================================ */
+const GOLD_MAP={easy:2, medium:5, hard:12, habit: 3}, XP_MAP={easy:20, medium:45, hard:100, habit: 150}, HP_COST={easy:5, medium:12, hard:25, habit: 30}, XP_LEVEL=120;
+const BOSS_NAMES = ['REY HORMIGA', 'GATO SOMBRA', 'BÚHO NOCTURNO', 'ZORRO CARMESÍ', 'GOLEM BASURA', 'LOBO CENIZA', 'CABALLERO HUECO', 'REY DRAGÓN'];
+
+function getLocalDateStr(d) { const pad=n=>n<10?'0'+n:n; return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function getNextSunday22() {
+  const now=new Date(), next=new Date(now), day=next.getDay(); 
+  let add=0; if(day===0) add=now.getHours()>=22?7:0; else add=7-day;
+  next.setDate(next.getDate()+add); next.setHours(22,0,0,0); return next.getTime();
+}
+
+function getBossIndex(lvl) { return Math.min(BOSS_NAMES.length - 1, Math.floor((lvl - 1) / 3)); }
+function getBossName(lvl) { return BOSS_NAMES[getBossIndex(lvl)]; }
+
+let todayStr=getLocalDateStr(new Date()), viewDateStr=todayStr, editingId=null, formType='habit', bossTimerInterval=null, isBattling=false;
+let notifGranted=false, notifTimers=[], intervalTimerId=null;
+
+// ESTADO BASE LIMPIO
+const DEFAULT_STATE = {
+  gold:0, hp:100, maxHp:100, armor:0, baseAtk:2, doubleStrikeChance:0, streak:0, xp:0, level:1, isDead: false, tasksDoneToday:0, equippedWeapon:null, equippedShield:null, ownedWeapons:[], 
+  habitDefs: [], 
+  tasks:[], nextId:100, lastDate:todayStr, 
+  boss:{level:1, hp:100, maxHp:100, atk:15, deadline:getNextSunday22(), state:'waiting'},
+  notifications:[
+    {id:'morning',label:'Mañana',time:'09:00',on:false},
+    {id:'noon',label:'Mediodía',time:'14:00',on:false},
+    {id:'evening',label:'Tarde',time:'19:00',on:false},
+    {id:'night',label:'Noche',time:'22:00',on:false},
+  ],
+  notifInterval: {on: false, hours: 2}
+};
+let G={};
+
+function loadState() {
+  const saved=localStorage.getItem('ratgeQuestData');
+  if(saved){ 
+    try { 
+        G={...DEFAULT_STATE,...JSON.parse(saved)}; 
+        G.ownedWeapons=new Set(G.ownedWeapons); 
+        if(typeof G.armor==='undefined') G.armor=0; 
+        if(typeof G.maxHp==='undefined') G.maxHp=100;
+        if(typeof G.baseAtk==='undefined') G.baseAtk=2;
+        if(typeof G.doubleStrikeChance==='undefined') G.doubleStrikeChance=0;
+        if(typeof G.equippedShield==='undefined') G.equippedShield=null;
+        if(!G.boss||!G.boss.state)G.boss={level:1,hp:100,maxHp:100,atk:15,deadline:getNextSunday22(),state:'waiting'}; 
+        if(!G.notifications) G.notifications=DEFAULT_STATE.notifications;
+        if(!G.notifInterval) G.notifInterval={on: false, hours: 2};
+    } catch(e){ G=JSON.parse(JSON.stringify(DEFAULT_STATE));G.ownedWeapons=new Set(); } 
+  }
+  else { G=JSON.parse(JSON.stringify(DEFAULT_STATE));G.ownedWeapons=new Set(); }
+  
+  checkDailyReset();
+}
+function saveState(){ localStorage.setItem('ratgeQuestData',JSON.stringify({...G,ownedWeapons:Array.from(G.ownedWeapons)})); }
+
+function checkDailyReset(){
+  const today=getLocalDateStr(new Date());
+  if(today!==G.lastDate){
+    if(G.tasksDoneToday===0&&G.streak>0&&!G.isDead){
+      G.streak=0; toast('¡Racha perdida!','red');
+    }
+    G.tasksDoneToday=0; G.lastDate=today; saveState();
+  }
+}
+
+function generateInstancesForDate(dateStr) {
+  let [y,m,d]=dateStr.split('-'); let dW=new Date(y,m-1,d,12).getDay();
+  G.habitDefs.forEach(def=>{ if(def.days.includes(dW) && !G.tasks.some(t=>t.defId===def.id && t.date===dateStr)) G.tasks.push({id:G.nextId++,type:'habit',defId:def.id,name:def.name,diff:'habit',date:dateStr,time:def.time||'',color:def.color||'#3498DB',status:'pending'}); });
+  saveState();
+}
+
+/* ============================================================
+   NOTIFICATIONS LOGIC
+============================================================ */
+async function requestNotifPermission(){
+  if(!('Notification' in window)) {
+    document.getElementById('notifStatus').textContent = 'No soportadas en este navegador.';
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  notifGranted = (perm === 'granted');
+  document.getElementById('notifStatus').textContent = notifGranted ? '✅ Activadas' : '❌ Denegadas';
+  if(notifGranted) scheduleNotifs();
+}
+
+function checkNotifStatus(){
+  if(!('Notification' in window)){ document.getElementById('notifStatus').textContent='No disponibles'; return; }
+  const p = Notification.permission;
+  notifGranted = (p === 'granted');
+  document.getElementById('notifStatus').textContent = p==='granted' ? '✅ Activadas' : (p==='denied' ? '❌ Denegadas' : '⏳ Esperando permiso');
+}
+
+function scheduleNotifs(){
+  notifTimers.forEach(clearTimeout); notifTimers=[];
+  if(intervalTimerId) clearInterval(intervalTimerId);
+
+  if(!notifGranted) return;
+  
+  G.notifications.forEach(n => {
+    if(!n.on) return;
+    const [h,m] = n.time.split(':').map(Number);
+    const now = new Date();
+    let target = new Date();
+    target.setHours(h,m,0,0);
+    if(target <= now) target.setDate(target.getDate() + 1);
+    
+    const ms = target - now;
+    const tid = setTimeout(() => {
+      triggerNotification();
+      scheduleNotifs(); 
+    }, ms);
+    notifTimers.push(tid);
+  });
+
+  if (G.notifInterval.on) {
+    intervalTimerId = setInterval(() => {
+      triggerNotification();
+    }, G.notifInterval.hours * 60 * 60 * 1000);
+  }
+}
+
+function triggerNotification() {
+  if(!notifGranted) return;
+  
+  const todayTasks = G.tasks.filter(t => t.date === todayStr);
+  const pending = todayTasks.filter(t => t.status === 'pending');
+  
+  let bodyMsg = "";
+  if (G.isDead) { 
+    const msgs = ["¡Squeak de ultratumba! Sigo muerta por tu culpa. Trae oro.", "Ratge no respira. Y tú sigues sin hacer misiones."];
+    bodyMsg = msgs[Math.floor(Math.random()*msgs.length)];
+  } 
+  else if (pending.length > 0) { 
+    const msgs = [
+      `¡SQUEAK! Tienes ${pending.length} misiones pudriéndose. ¡A trabajar!`,
+      `¿Descansando? El jefe te va a aplastar. Haz tus ${pending.length} tareas.`,
+      `Ratge está decepcionada. Quedan ${pending.length} cosas por hacer hoy.`,
+      `¡Mueve esas patas de humano! Faltan ${pending.length} gestas.`
+    ];
+    bodyMsg = msgs[Math.floor(Math.random()*msgs.length)];
+  } 
+  else if (todayTasks.length > 0) { 
+    const msgs = ["¡Día perfecto! Ratge afila sus garras para el domingo.", "Todo completado. El jefe ya está temblando de miedo."];
+    bodyMsg = msgs[Math.floor(Math.random()*msgs.length)];
+  } 
+  else { 
+    bodyMsg = "¡Squeak! No has registrado tareas hoy. ¡Abre la app, vaga!"; 
+  }
+
+  try {
+    new Notification('⚔️ RATGE QUEST', {
+      body: bodyMsg,
+      icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%230d1a0d'/><text y='24' font-size='24'>🐀</text></svg>"
+    });
+  } catch(e) {
+    navigator.serviceWorker.ready.then(reg => { reg.showNotification('⚔️ RATGE QUEST', { body: bodyMsg }); });
+  }
+}
+
+document.getElementById('intervalToggle').addEventListener('click', e => {
+  G.notifInterval.on = !G.notifInterval.on;
+  saveState(); scheduleNotifs(); renderNotifs();
+});
+document.getElementById('intervalSelect').addEventListener('change', e => {
+  G.notifInterval.hours = parseInt(e.target.value);
+  saveState(); scheduleNotifs();
+});
+
+function renderNotifs(){
+  const list=document.getElementById('notifList'); list.innerHTML='';
+  G.notifications.forEach(n=>{
+    const row=document.createElement('div'); row.className='notif-row';
+    row.innerHTML=`<span class="notif-label">${n.label}</span><input class="time-input" type="time" value="${n.time}" data-id="${n.id}"><div class="notif-toggle ${n.on?'on':''}" data-id="${n.id}"></div>`;
+    row.querySelector('.notif-toggle').addEventListener('click',e=>{
+      const t=G.notifications.find(x=>x.id===e.currentTarget.dataset.id);
+      if(t){t.on=!t.on; saveState(); scheduleNotifs(); renderNotifs();}
+    });
+    row.querySelector('.time-input').addEventListener('change',e=>{
+      const t=G.notifications.find(x=>x.id===e.target.dataset.id);
+      if(t){t.time=e.target.value; saveState(); scheduleNotifs();}
+    });
+    list.appendChild(row);
+  });
+  
+  document.getElementById('intervalSelect').value = G.notifInterval.hours;
+  document.getElementById('intervalToggle').className = `notif-toggle ${G.notifInterval.on ? 'on' : ''}`;
+}
+
+document.getElementById('reqNotifBtn').addEventListener('click', requestNotifPermission);
+
+/* ============================================================
+   COMBAT & POST-BATTLE
+============================================================ */
+function tickBossTimer() {
+  if (isBattling) return;
+  const now = Date.now();
+  if (now >= G.boss.deadline && G.boss.state === 'waiting') { G.boss.state = 'ready'; saveState(); }
+
+  const display = document.getElementById('bossTimerDisplay'), btnBattle = document.getElementById('btnStartBattle');
+  const timerUI = document.getElementById('bossTimerUI'), label = document.getElementById('bossTimerLabel');
+
+  if (G.boss.state === 'ready') {
+    display.style.display = 'none'; btnBattle.style.display = 'block'; document.getElementById('bossTabBtn').style.animation = 'pulseBtn 1.5s infinite';
+  } else {
+    display.style.display = 'block'; btnBattle.style.display = 'none'; document.getElementById('bossTabBtn').style.animation = 'none';
+    timerUI.style.color = "var(--gold)"; label.textContent = "PRÓXIMA BATALLA EN:";
+    const diff = G.boss.deadline - now;
+    if (diff > 0) {
+      const d=Math.floor(diff/(1000*60*60*24)), h=Math.floor((diff/(1000*60*60))%24), m=Math.floor((diff/1000/60)%60), s=Math.floor((diff/1000)%60);
+      timerUI.textContent = `${d}d ${h}h ${m}m ${s}s`;
+    }
+  }
+}
+function startBossTimer() { if(bossTimerInterval)clearInterval(bossTimerInterval); tickBossTimer(); bossTimerInterval=setInterval(tickBossTimer,1000); }
+
+document.getElementById('btnStartBattle').addEventListener('click', () => {
+  if (G.isDead) { toast("No puedes pelear muerta.", "red"); return; }
+  if (G.hp <= 0) return;
+  startCombat();
+});
+
+document.getElementById('btnCloseResult').addEventListener('click', () => {
+  document.getElementById('battleResultOverlay').style.display = 'none';
+  document.getElementById('bossTimerContainer').style.display = 'block';
+  document.getElementById('bossIntelBox').style.display = 'flex';
+  
+  // Restaurar animaciones idle al cerrar
+  document.getElementById('spriteRatgeWrap').className = 'fighter-sprite anim-idle';
+  document.getElementById('spriteBossWrap').className = 'fighter-sprite anim-idle';
+
+  tickBossTimer(); renderBoss(); updateHeader(); 
+});
+
+function createFloatingText(targetId, msg, colorClass) {
+  const target = document.getElementById(targetId); const floatDiv = document.createElement('div'); floatDiv.className = `float-text ${colorClass}`; floatDiv.textContent = msg;
+  target.appendChild(floatDiv); setTimeout(() => floatDiv.remove(), 1000);
+}
+
+function updateArenaBars() {
+  document.getElementById('arenaRatgeHp').style.width = Math.min(100, (G.hp / G.maxHp) * 100) + '%';
+  document.getElementById('arenaRatgeArmor').style.width = Math.min(100, G.armor) + '%';
+  document.getElementById('arenaBossHp').style.width = Math.max(0, Math.min(100, (G.boss.hp / G.boss.maxHp) * 100)) + '%';
+}
+
+function startCombat() {
+  isBattling = true; document.getElementById('btnStartBattle').style.display = 'none';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.add('disabled'));
+  document.getElementById('bossTimerContainer').style.display = 'none'; 
+  document.getElementById('bossIntelBox').style.display = 'none';
+
+  // Remover animaciones idle para el combate
+  document.getElementById('spriteRatgeWrap').classList.remove('anim-idle');
+  document.getElementById('spriteBossWrap').classList.remove('anim-idle');
+
+  const w = ITEMS.find(x => x.id === G.equippedWeapon) || {id:'fist', atk: 0};
+  const shield = ITEMS.find(x => x.id === G.equippedShield);
+  const blockChance = shield ? shield.block : 0;
+
+  updateArenaBars();
+  let isRatgeTurn = true, ratgeActions = 1;
+  // Apply base passive double strike
+  if (Math.random() < G.doubleStrikeChance) ratgeActions++;
+
+  const logBox = document.getElementById('battleLog'); logBox.style.display = 'flex'; logBox.innerHTML = '';
+  function appendLog(msg, cl){ const p=document.createElement('div');p.className=cl;p.textContent=msg;logBox.appendChild(p);logBox.scrollTop=logBox.scrollHeight;}
+  appendLog('--- INICIO ---', 'log-gold');
+
+  let turnInterval = setInterval(() => {
+    if (isRatgeTurn) {
+      if (ratgeActions > 0) {
+        document.getElementById('spriteRatgeWrap').classList.add('anim-atk-r'); setTimeout(()=>document.getElementById('spriteRatgeWrap').classList.remove('anim-atk-r'), 300);
+
+        setTimeout(() => {
+          let baseDmg = G.baseAtk + w.atk + (Math.random() < 0.5 ? 1 : Math.random() < 0.2 ? -1 : 0);
+          let crit = false, msg = '', dmgColor = 'text-red', doHeal = 0;
+
+          if (w.id === 'dagger' && Math.random() < 0.30) { crit=true; baseDmg*=2; msg='¡CRÍTICO! '; dmgColor='text-gold'; }
+          if (w.id === 'axe' && Math.random() < 0.10) { crit=true; baseDmg*=3; msg='¡BRUTAL! '; dmgColor='text-gold'; }
+          if (w.id === 'staff') doHeal = 2;
+          if (w.id === 'scythe') doHeal = Math.max(1, Math.floor(baseDmg * 0.20));
+          
+          G.boss.hp = Math.max(0, G.boss.hp - baseDmg);
+          document.getElementById('spriteBossWrap').classList.add('anim-hit'); setTimeout(()=>document.getElementById('spriteBossWrap').classList.remove('anim-hit'), 300);
+          createFloatingText('spriteBossWrap', `${msg}-${baseDmg}`, dmgColor);
+          if (doHeal > 0) { G.hp = Math.min(G.maxHp, G.hp + doHeal); createFloatingText('spriteRatgeWrap', `+${doHeal}HP`, 'text-green'); }
+
+          updateArenaBars(); updateHeader(); ratgeActions--;
+          appendLog(`> Ratge: ${baseDmg} dmg. ${msg}`, crit?'log-crit':'log-ratge');
+          
+          if (ratgeActions === 0 && w.id === 'sword' && Math.random() < 0.15) { ratgeActions = 1; createFloatingText('spriteRatgeWrap', '¡DOBLE!', 'text-gold'); return; }
+          if (G.boss.hp <= 0) { clearInterval(turnInterval); endCombat(true); return; }
+          isRatgeTurn = false;
+        }, 150);
+      }
+    } else {
+      document.getElementById('spriteBossWrap').classList.add('anim-atk-b'); setTimeout(()=>document.getElementById('spriteBossWrap').classList.remove('anim-atk-b'), 300);
+
+      setTimeout(() => {
+        let bDmg = G.boss.atk + (Math.random() < 0.5 ? 2 : Math.random() < 0.2 ? -2 : 0);
+        let dodged = false;
+        
+        if (w.id === 'bow' && Math.random() < 0.20) dodged = true;
+        if (shield && Math.random() < blockChance) { dodged = true; createFloatingText('spriteRatgeWrap', '¡BLOQUEO!', 'text-gold'); }
+
+        if (dodged && (!shield || Math.random() > blockChance)) { createFloatingText('spriteRatgeWrap', '¡ESQUIVA!', 'text-green'); appendLog(`> Jefe falló.`, 'log-muted'); } 
+        else if (!dodged) {
+          let armorHit = Math.min(G.armor, bDmg); G.armor -= armorHit;
+          let hpDmg = bDmg - armorHit; G.hp = Math.max(0, G.hp - hpDmg);
+          
+          document.getElementById('spriteRatgeWrap').classList.add('anim-hit'); setTimeout(()=>document.getElementById('spriteRatgeWrap').classList.remove('anim-hit'), 300);
+          createFloatingText('spriteRatgeWrap', armorHit>0 ? `-${hpDmg}HP/-${armorHit}ARM` : `-${hpDmg}`, 'text-red');
+          appendLog(`> Jefe: ${bDmg} dmg.`, 'log-boss');
+        }
+
+        updateArenaBars(); updateHeader();
+        if (G.hp <= 0) { clearInterval(turnInterval); endCombat(false); return; }
+        
+        isRatgeTurn = true; 
+        ratgeActions = 1 + (Math.random() < G.doubleStrikeChance ? 1 : 0);
+      }, 150);
+    }
+  }, 1000);
+}
+
+function endCombat(win) {
+  if (win) {
+    document.getElementById('spriteBossWrap').className = 'fighter-sprite anim-boss-death';
+  } else {
+    document.getElementById('spriteRatgeWrap').className = 'fighter-sprite anim-ratge-death';
+  }
+
+  setTimeout(() => {
+    isBattling = false; document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('disabled'));
+    document.getElementById('battleLog').style.display = 'none';
+
+    const overlay = document.getElementById('battleResultOverlay'), title = document.getElementById('battleResultTitle'), desc = document.getElementById('battleResultDesc');
+
+    if (win) {
+      const reward = G.boss.level * 60; G.gold += reward; ratgeSay('boss_kill');
+      
+      G.boss.level++;
+      G.boss.maxHp = 80 + ((G.boss.level - 1) * 30); 
+      G.boss.hp = G.boss.maxHp; 
+      G.boss.atk = 15 + ((G.boss.level - 1) * 5);
+      
+      const nextBossName = getBossName(G.boss.level);
+      title.textContent = "¡VICTORIA!"; title.style.color = "var(--gold)";
+      desc.innerHTML = `Excelente, le ganaste al jefe.<br><br>Has obtenido <b>${reward}💰</b>.<br><br>El jefe del próximo domingo será<br><b style="color:var(--color-purple);">${nextBossName}</b><br>(Nivel ${G.boss.level}).`;
+      
+      G.boss.state = 'waiting'; G.boss.deadline = getNextSunday22();
+    } else {
+      checkDeath(); title.textContent = "¡DERROTA!"; title.style.color = "var(--red)";
+      desc.innerHTML = `Ratge ha caído en combate.<br><br>Fuiste derrotado. Resucita a Ratge y espera al domingo que viene para volver a intentar derrotarlo.`;
+      G.boss.hp = G.boss.maxHp; G.boss.state = 'waiting'; G.boss.deadline = getNextSunday22();
+    }
+    
+    saveState(); overlay.style.display = 'flex';
+  }, 1500); // Dar tiempo a que terminen las animaciones de muerte
+}
+
+function renderBoss() {
+  document.getElementById('bossNameUI').textContent = getBossName(G.boss.level);
+  document.getElementById('bossLvlUI').textContent = G.boss.level;
+  document.getElementById('intelHpUI').textContent = G.boss.maxHp;
+  document.getElementById('intelAtkUI').textContent = G.boss.atk;
+  const cr = document.getElementById('arenaRatgeCanvas'); drawRatge(cr, G.equippedWeapon);
+  const cb = document.getElementById('arenaBossCanvas'); drawBossPixel(cb, G.boss.level);
+  
+  // Resetea clases visuales por si venimos de un combate terminado
+  document.getElementById('spriteRatgeWrap').className = 'fighter-sprite anim-idle';
+  document.getElementById('spriteBossWrap').className = 'fighter-sprite anim-idle';
+  
+  updateArenaBars();
+}
+
+/* ============================================================
+   DRAWING (PIXEL ART)
+============================================================ */
+function drawRatge(canvas,wId){
+  const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.imageSmoothingEnabled=false;
+  const p=canvas.width===96?5.5:3.5; function px(x,y,c,w=1,h=1){ctx.fillStyle=c;ctx.fillRect(x*p,y*p,w*p,h*p);}
+  ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.ellipse(28*(p/3.5),52*(p/3.5),14*(p/3.5),4*(p/3.5),0,0,Math.PI*2);ctx.fill();
+  if(G.isDead){ px(9,6,'#fff',10,8);px(10,5,'#fff',8,1);px(10,14,'#fff',8,2);px(11,8,'#000',2,2);px(15,8,'#000',2,2);px(13,11,'#000',2,1);px(11,14,'#000',1,2);px(13,14,'#000',1,2);px(15,14,'#000',1,2);return; }
+  const bg='#2ECC40',bd='#1a7a25',bdd='#0f4a17',belly='#5DF56E',ear='#FF69B4',eye='#111';
+  px(12,11,bd,1,2);px(11,12,bd,1,2);px(10,13,bd,1,3);px(9,14,bd,1,3); px(8,8,bg,6,8);px(7,9,bg,8,7);px(6,10,bg,10,5);px(7,15,bg,8,2);px(9,10,belly,4,4);
+  px(9,3,bg,6,6);px(8,4,bg,8,5);px(8,3,bg,2,2);px(14,3,bg,2,2); px(8,2,ear,2,2);px(14,2,ear,2,2);px(8,1,ear,2,1);px(14,1,ear,2,1);
+  px(10,5,eye,1,1);px(13,5,eye,1,1);px(10,5,'#fff',0.5,0.5);px(11,7,ear,2,1);
+  px(9,15,bdd,2,2);px(13,15,bdd,2,2);px(8,16,bdd,3,1);px(12,16,bdd,3,1);px(6,10,bg,2,3);px(15,10,bg,2,3);px(5,12,bdd,2,1);px(16,12,bdd,2,1);
+  if(!wId){ ctx.fillStyle='#FF69B4';ctx.fillRect(17*p,9*p,2*p,2*p);return; }
+  const colors={sword:'#C0C0C0',axe:'#8B6914',bow:'#8B4513',staff:'#9B59B6',dagger:'#2ECC40'};
+  ctx.fillStyle=colors[wId]||'#fff';ctx.fillRect(17*p,8*p,2*p,6*p); ctx.fillStyle='rgba(255,255,255,0.4)';ctx.fillRect(17*p,8*p,p,p);
+}
+
+function drawBossPixel(canvas, level) {
+  const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,128,128); ctx.imageSmoothingEnabled=false;
+  const p=6; function px(x,y,c,w=1,h=1){ctx.fillStyle=c;ctx.fillRect(x*p,y*p,w*p,h*p);}
+  const base='#111', eye='#E74C3C', idx=getBossIndex(level);
+
+  switch(idx) {
+    case 0: // Hormiga
+      px(7,4,base,2,3); px(5,7,base,6,4); px(4,11,base,8,3); px(6,8,eye,1,1); px(9,8,eye,1,1); px(3,12,base,2,1); px(11,12,base,2,1); px(4,14,base,1,2); px(11,14,base,1,2); break;
+    case 1: // Gato Sombra
+      px(4,4,base,2,3); px(10,4,base,2,3); px(3,7,base,10,6); px(4,13,base,8,2); px(5,9,eye,2,2); px(9,9,eye,2,2); px(5,9,'#fff',1,1); px(9,9,'#fff',1,1); break;
+    case 2: // Buho
+      px(5,3,base,6,12); px(3,7,base,2,6); px(11,7,base,2,6); px(4,4,base,2,2); px(10,4,base,2,2); px(6,6,'#F1C40F',4,2); px(6,6,base,1,1); px(9,6,base,1,1); px(7,9,'#E67E22',2,2); break;
+    case 3: // Zorro
+      px(3,4,'#D35400',3,4); px(10,4,'#D35400',3,4); px(4,8,'#D35400',8,6); px(6,14,'#fff',4,2); px(5,10,base,2,1); px(9,10,base,2,1); px(7,13,base,2,1); break;
+    case 4: // Golem
+      px(4,2,'#7F8C8D',8,12); px(2,5,'#95A5A6',3,6); px(11,4,'#95A5A6',4,8); px(6,5,eye,4,2); px(5,14,'#7F8C8D',2,2); px(9,14,'#7F8C8D',3,2); break;
+    case 5: // Lobo
+      px(5,3,'#555',2,3); px(9,3,'#555',2,3); px(4,6,'#555',8,6); px(6,12,'#777',4,3); px(5,8,eye,2,1); px(9,8,eye,2,1); px(7,12,base,2,1); break;
+    case 6: // Caballero
+      px(6,2,'#BDC3C7',4,4); px(5,6,'#BDC3C7',6,8); px(3,7,'#95A5A6',2,6); px(11,7,'#95A5A6',2,6); px(6,4,eye,4,1); px(7,14,'#7F8C8D',2,2); break;
+    case 7: // Dragon
+      px(5,2,'#27AE60',6,4); px(3,6,'#2ECC71',10,8); px(4,14,'#27AE60',8,2); px(4,1,'#F1C40F',2,3); px(10,1,'#F1C40F',2,3); px(5,8,eye,2,2); px(9,8,eye,2,2); px(6,8,'#fff',1,1); px(10,8,'#fff',1,1); px(6,12,'#F1C40F',4,1); break;
+  }
+}
+
+// SHOP DATA
+const ITEMS = [
+  {id:'potion', type:'consumable', name:'QUESO\n(+25HP)', cost:25, heal:25, color:'#FFD700', color2:'#F39C12'},
+  {id:'revive', type:'resurrect', name:'REVIVIR', cost:150, heal:100, color:'#9B59B6', color2:'#8E44AD'},
+  {id:'elixir_hp', type:'upgrade', name:'ELIXIR\nVITALIDAD', cost:400, heal:0, pass:'+50 Max HP', color:'#E74C3C', color2:'#C0392B'},
+  {id:'potion_agi', type:'upgrade', name:'POCIÓN\nAGILIDAD', cost:350, heal:0, pass:'+3 ATK\n+5% Doble', color:'#3498DB', color2:'#2980B9'},
+
+  {id:'armor1', type:'armor', name:'CUERO', cost:40, arm:25, color:'#8B4513', color2:'#5C2B0B'},
+  {id:'armor2', type:'armor', name:'HIERRO', cost:80, arm:50, color:'#95A5A6', color2:'#7F8C8D'},
+  
+  {id:'shield_w', type:'shield', name:'E. MADERA', cost:50, block: 0.10, pass:'10% Bloqueo', color:'#D35400', color2:'#A04000'},
+  {id:'shield_i', type:'shield', name:'E. HIERRO', cost:120, block: 0.20, pass:'20% Bloqueo', color:'#BDC3C7', color2:'#7F8C8D'},
+  {id:'shield_l', type:'shield', name:'E. DIVINO', cost:300, block: 0.35, pass:'35% Bloqueo', color:'#F1C40F', color2:'#D4AC0D'},
+
+  {id:'dagger', type:'weapon', name:'DAGA',cost:30,atk:5, pass:'30% Crítico',color:'#2ECC40',color2:'#1a7a25'},
+  {id:'sword', type:'weapon', name:'ESPADA',cost:150,atk:12, pass:'15% Doble',color:'#95A5A6',color2:'#7F8C8D'},
+  {id:'bow', type:'weapon', name:'ARCO',cost:225,atk:15, pass:'20% Esquivar',color:'#27AE60',color2:'#1E8449'},
+  {id:'axe', type:'weapon', name:'HACHA',cost:320,atk:18, pass:'10% Brutal',color:'#D4A017',color2:'#8B6914'},
+  {id:'staff', type:'weapon', name:'BASTÓN',cost:450,atk:20, pass:'+2 HP/Golpe',color:'#9B59B6',color2:'#6C3483'},
+  {id:'scythe', type:'weapon', name:'GUADAÑA',cost:600,atk:30, pass:'Vampirismo',color:'#1ABC9C',color2:'#148F77'}
+];
+
+function drawItem(canvas,w){
+  const ctx=canvas.getContext('2d'); ctx.clearRect(0,0,64,64); ctx.imageSmoothingEnabled=false;
+  const p=3; function px(x,y,c,ww=1,hh=1){ctx.fillStyle=c;ctx.fillRect(x*p,y*p,ww*p,hh*p);}
+  if(w.id!=='fist'){ ctx.fillStyle='rgba(46,204,64,0.06)'; ctx.fillRect(0,0,64,64); }
+  const c=w.color,c2=w.color2,shine='rgba(255,255,255,0.5)';
+  
+  if(w.id==='fist'){ px(8,10,w.color2,5,6); px(7,9,w.color,5,5); px(7,9,'rgba(0,0,0,0.2)',1,2); px(9,9,'rgba(0,0,0,0.2)',1,2); px(11,9,'rgba(0,0,0,0.2)',1,2); return; }
+  
+  if(w.id==='potion' || w.id==='potion_agi'){ px(7,8,c2,8,4); px(6,12,c,10,6); px(5,11,c,2,2); px(8,14,'#fff',2,2); return; }
+  if(w.id==='revive' || w.id==='elixir_hp'){ px(10,4,c2,2,14); px(6,10,c2,10,2); px(10,6,c,2,10); px(8,10,c,6,2); return; }
+  
+  if(w.type==='armor'){ px(7,5,c2,8,3); px(5,8,c,12,8); px(8,6,c,6,2); px(5,8,shine,3,2); return; }
+  if(w.type==='shield'){ ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(32,4);ctx.lineTo(52,14);ctx.lineTo(52,34);ctx.lineTo(32,58);ctx.lineTo(12,34);ctx.lineTo(12,14);ctx.closePath();ctx.fill(); ctx.fillStyle=c2;ctx.fillRect(30,14,4,40); return; }
+  
+  if(w.id==='dagger'){ px(9,2,c,2,10);px(8,10,c,4,2);px(7,11,'#555',5,1);px(9,12,c2,2,4); }
+  if(w.id==='sword'){ px(9,1,c,2,14);px(7,12,c,6,2);px(8,14,'#8B6914',4,1);px(9,15,c2,2,4); }
+  if(w.id==='bow'){ ctx.strokeStyle=c;ctx.lineWidth=p; ctx.beginPath();ctx.arc(32,32,22,Math.PI*0.2,Math.PI*1.8);ctx.stroke(); }
+  if(w.id==='axe'){ px(9,3,c2,2,14);px(5,3,c,6,5);px(5,3,c,2,8); }
+  if(w.id==='staff'){ px(9,1,c2,2,16);px(8,1,c,4,3);px(7,0,c,6,2);px(8,4,'#FFD700',4,2); }
+  if(w.id==='scythe'){ px(10,10,c2,2,10); ctx.strokeStyle=c;ctx.lineWidth=p; ctx.beginPath();ctx.arc(22,10,15,-Math.PI*0.1,-Math.PI*1.2,true);ctx.stroke(); }
+}
+
+/* ============================================================
+   UI ROUTING & UPDATES
+============================================================ */
+function ratgeSay(cat){
+  if(G.isDead && cat!=='revive'){ document.getElementById('ratgeSpeech').textContent='...'; document.getElementById('ratgeBubbleBox').classList.add('dead'); return; }
+  document.getElementById('ratgeBubbleBox').classList.remove('dead');
+  const dict = { idle:['¡A TRABAJAR!','¡Squeak! ¿Qué esperas?'], done:['¡Bien hecho!'], fail:['¡Eso duele...'], undo:['¡Viaje en el tiempo!'], dead:['...'], revive:['¡HE REGRESADO!'], boss_kill:['¡GLORIA A RATGE!'] };
+  document.getElementById('ratgeSpeech').textContent = (dict[cat]||dict.idle)[0];
+  const c = document.getElementById('ratgeCanvas'); c.style.animation='none'; void c.offsetWidth; c.style.animation='wiggle .35s ease';
+}
+function checkDeath() { if(G.hp<=0&&!G.isDead){ G.hp=0; G.isDead=true; G.streak=0; ratgeSay('dead'); toast('Ratge ha muerto.', 'red'); } }
+
+function switchScreen(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+  document.getElementById('mainNav').style.display = screenId !== 'screen-form' ? 'flex' : 'none'; 
+  if(screenId==='screen-boss') renderBoss();
+  if(screenId==='screen-notifs') renderNotifs();
+}
+document.querySelectorAll('.tab-btn').forEach(btn=>{ btn.addEventListener('click',()=>{ if(btn.classList.contains('disabled')) return; document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); switchScreen('screen-'+btn.dataset.tab); }); });
+
+function updateHeader(){
+  document.getElementById('hdrGold').textContent=G.gold; 
+  document.getElementById('hdrHp').textContent=G.hp; 
+  document.getElementById('hdrHpLabel').textContent=`SALUD (Max ${G.maxHp})`; 
+  document.getElementById('hdrArmor').textContent=G.armor; 
+  document.getElementById('hdrStreak').textContent=G.streak;
+  
+  document.getElementById('hpBar').style.width=Math.min(100, (G.hp/G.maxHp)*100)+'%'; 
+  document.getElementById('hpBar').style.background=(G.hp/G.maxHp)>0.6?'var(--hp-red)':(G.hp/G.maxHp)>0.3?'#e67e22':'#c0392b'; 
+  document.getElementById('armorBar').style.width=Math.min(100,G.armor)+'%'; 
+  document.getElementById('shopGold').textContent=G.gold;
+  
+  let [y,m,d] = viewDateStr.split('-'); document.getElementById('dateDisplay').textContent = viewDateStr===todayStr?"Hoy":`${d}/${m}/${y}`;
+  drawRatge(document.getElementById('ratgeCanvas'),G.equippedWeapon);
+  
+  const wpnObj=ITEMS.find(x=>x.id===G.equippedWeapon) || {id:'fist', color:'#FF69B4', color2:'#C71585'}; drawItem(document.getElementById('equippedCanvas'), wpnObj);
+  const shdObj=ITEMS.find(x=>x.id===G.equippedShield) || {id:'fist', color:'transparent', color2:'transparent'}; drawItem(document.getElementById('equippedShieldCanvas'), shdObj);
+
+  const wpnAtk = wpnObj.atk || 0;
+  const totalAtk = G.baseAtk + wpnAtk;
+  document.getElementById('playerAtkUI').textContent = totalAtk;
+  document.getElementById('playerHpMaxUI').textContent = G.maxHp;
+
+  if(document.getElementById('screen-boss').classList.contains('active')) updateArenaBars();
+}
+
+function renderTasks(){
+  generateInstancesForDate(viewDateStr); const hList=document.getElementById('habitList'), qList=document.getElementById('taskList'); hList.innerHTML=''; qList.innerHTML='';
+  let visible = G.tasks.filter(t => t.date===viewDateStr && t.status!=='skipped');
+  function buildList(container, arr) {
+    if(arr.length===0){ container.innerHTML='<div class="empty-box">Libre...</div>'; return; }
+    arr.forEach(t=>{
+      const div=document.createElement('div'); div.className='task-card status-'+t.status; div.style.borderLeftColor=t.color;
+      let diffStr=t.diff==='habit'?'Hábito':t.diff==='easy'?'Fácil':t.diff==='hard'?'Épica':'Normal';
+      let actions = t.status==='pending' ? `<button type="button" class="action-btn btn-done" onclick="markTask(${t.id},'done')">✓</button><button type="button" class="action-btn btn-fail" onclick="markTask(${t.id},'fail')">✗</button><button type="button" class="action-btn btn-edit" onclick="openForm(${t.id})">✎</button>` : `<button type="button" class="action-btn btn-undo" onclick="markTask(${t.id},'undo')">⟲</button><button type="button" class="action-btn btn-edit" onclick="openForm(${t.id})">✎</button>`;
+      div.innerHTML=`<div class="task-main"><div class="task-body"><span class="task-name">${t.name}</span><div class="task-meta"><span class="diff-badge diff-${t.diff}">${diffStr}</span><span class="task-reward">+${GOLD_MAP[t.diff]}💰</span></div></div></div><div class="task-actions">${actions}</div>`;
+      container.appendChild(div);
+    });
+  }
+  buildList(hList, visible.filter(t=>t.type==='habit')); buildList(qList, visible.filter(t=>t.type==='quest'));
+}
+
+function renderShop(){
+  const grids = { 'consumable': document.getElementById('shopConsumables'), 'upgrade': document.getElementById('shopConsumables'), 'resurrect': document.getElementById('shopConsumables'), 'weapon': document.getElementById('shopWeapons'), 'armor': document.getElementById('shopArmor'), 'shield': document.getElementById('shopArmor') };
+  for(let g in grids) grids[g].innerHTML = '';
+
+  ITEMS.forEach(item=>{
+    const isW=item.type==='weapon', isA=item.type==='armor', isS=item.type==='shield', isU=item.type==='upgrade';
+    const owned=(isW||isS)&&G.ownedWeapons.has(item.id), eq=(isW&&G.equippedWeapon===item.id)||(isS&&G.equippedShield===item.id);
+    const div=document.createElement('div'); 
+    div.className='weapon-card '+(eq?'equipped':owned?'owned':item.type==='resurrect'?'resurrect':isW||isS?'':isA?'armor':isU?'upgrade':'consumable');
+    const cvs=document.createElement('canvas'); cvs.width=64;cvs.height=64;cvs.className='weapon-pixel';
+    let stat=isW?`ATK +${item.atk}`:isA?`+${item.arm} ARM`:isS?`DEFENSA`:isU?'MEJORA':(item.type==='resurrect'?'REVIVIR':`CURA +${item.heal}❤️`);
+    let passText=(isW||isS||isU) && item.pass ?`<div style="font-size:8px;color:var(--orange);margin-top:2px;white-space:pre-line;">${item.pass}</div>`:'';
+    div.innerHTML=`${eq?'<span class="owned-badge equipped-badge">EQ</span>':owned?'<span class="owned-badge">TUYA</span>':''}<div class="weapon-name">${item.name}</div><div class="weapon-cost">${owned?'':'💰'+item.cost}</div><div class="${isA||isS?'weapon-arm':'weapon-heal'}">${stat}</div>${passText}`;
+    div.insertBefore(cvs,div.firstChild); drawItem(cvs,item); div.addEventListener('click',()=>buyItem(item)); 
+    grids[item.type].appendChild(div);
+  });
+}
+
+function fullRender(){ updateHeader(); renderTasks(); renderShop(); checkNotifStatus(); if(!G.isDead)ratgeSay('idle'); startBossTimer(); scheduleNotifs(); }
+
+/* ============================================================
+   ACTIONS
+============================================================ */
+document.getElementById('btnPrevDay').addEventListener('click', () => { let d=new Date(viewDateStr+'T12:00:00'); d.setDate(d.getDate()-1); viewDateStr=getLocalDateStr(d); updateHeader(); renderTasks(); });
+document.getElementById('btnNextDay').addEventListener('click', () => { let d=new Date(viewDateStr+'T12:00:00'); d.setDate(d.getDate()+1); viewDateStr=getLocalDateStr(d); updateHeader(); renderTasks(); });
+
+window.markTask = function(id, action) {
+  const t = G.tasks.find(x=>x.id===id); if(!t) return;
+  if(action==='undo') {
+    if(t.status==='pending') return;
+    if(t.status==='completed') { G.gold=Math.max(0,G.gold-GOLD_MAP[t.diff]); G.xp=Math.max(0,G.xp-XP_MAP[t.diff]); G.tasksDoneToday=Math.max(0,G.tasksDoneToday-1); }
+    else if(t.status==='failed') { if(!G.isDead) G.hp=Math.min(G.maxHp,G.hp+HP_COST[t.diff]); }
+    t.status='pending'; ratgeSay('undo'); toast(`Acción deshecha.`, 'gold');
+  } 
+  else if(action==='done'&&t.status==='pending') {
+    t.status='completed'; G.gold+=GOLD_MAP[t.diff]; G.xp+=XP_MAP[t.diff]; G.tasksDoneToday++;
+    
+    if(G.tasksDoneToday===1&&!G.isDead) { 
+      G.streak++; 
+      if (G.streak > 1 && G.hp < G.maxHp) { const healAmt=Math.min(10,G.streak); G.hp=Math.min(G.maxHp,G.hp+healAmt); toast(`Racha x${G.streak}: +${healAmt}❤️`, 'green'); }
+      if (G.streak % 7 === 0) {
+        const streakReward = (G.streak / 7) * 50; G.gold += streakReward;
+        setTimeout(() => toast(`¡COFRE DE RACHA x${G.streak}! +${streakReward}💰`, 'gold'), 1500);
+      }
+    }
+    while(G.xp>=G.level*XP_LEVEL) { G.xp-=G.level*XP_LEVEL; G.level++; ratgeSay('idle'); } toast(`+${GOLD_MAP[t.diff]}💰 COMPLETADA`, 'gold');
+  } 
+  else if(action==='fail'&&t.status==='pending') {
+    t.status='failed'; if(!G.isDead) { G.hp=Math.max(0,G.hp-HP_COST[t.diff]); toast(`-${HP_COST[t.diff]}❤️ FALLADA`, 'red'); checkDeath(); if(!G.isDead)ratgeSay('fail'); }
+  }
+  saveState(); updateHeader(); renderTasks();
+}
+
+function buyItem(item) {
+  if (item.type==='resurrect') { if(!G.isDead){toast('Ratge viva.','green');return;} if(G.gold<item.cost){toast('Oro insuficiente.','red');return;} G.gold-=item.cost; G.isDead=false; G.hp=G.maxHp; G.armor=0; ratgeSay('revive'); toast(`¡RATGE REVIVIDA!`, 'gold'); }
+  else if (item.type==='consumable') { if(G.isDead){toast('Muerta.','red');return;} if(G.hp>=G.maxHp){toast('Salud llena.','green');return;} if(G.gold<item.cost){toast('Sin oro.','red');return;} G.gold-=item.cost; G.hp=Math.min(G.maxHp,G.hp+item.heal); toast(`+${item.heal}❤️`, 'green'); }
+  else if (item.type==='upgrade') { 
+    if(G.isDead){toast('Muerta.','red');return;} if(G.gold<item.cost){toast('Sin oro.','red');return;} 
+    G.gold-=item.cost; 
+    if(item.id==='elixir_hp'){ G.maxHp+=50; G.hp+=50; toast('+50 MAX HP', 'gold'); }
+    if(item.id==='potion_agi'){ G.baseAtk+=3; G.doubleStrikeChance+=0.05; toast('AGILIDAD MEJORADA', 'gold'); }
+  }
+  else if (item.type==='armor') { if(G.isDead){toast('Muerta.','red');return;} if(G.gold<item.cost){toast('Sin oro.','red');return;} G.gold-=item.cost; G.armor=Math.min(100,G.armor+item.arm); toast(`+${item.arm}🛡️`, 'gold'); }
+  else if (item.type==='shield') { 
+    if(G.isDead){toast('Muerta.','red');return;} 
+    if(G.ownedWeapons.has(item.id)) G.equippedShield=G.equippedShield===item.id?null:item.id; 
+    else { if(G.gold<item.cost){toast('Sin oro.','red');return;} G.gold-=item.cost; G.ownedWeapons.add(item.id); G.equippedShield=item.id; toast('Escudo equipado.', 'gold'); } 
+  }
+  else { 
+    if(G.isDead){toast('Muerta.','red');return;} 
+    if(G.ownedWeapons.has(item.id)) G.equippedWeapon=G.equippedWeapon===item.id?null:item.id; 
+    else { if(G.gold<item.cost){toast('Sin oro.','red');return;} G.gold-=item.cost; G.ownedWeapons.add(item.id); G.equippedWeapon=item.id; toast('Arma equipada.', 'gold'); } 
+  }
+  saveState(); updateHeader(); renderShop();
+}
+
+/* ============================================================
+   FORMS
+============================================================ */
+document.querySelectorAll('.type-btn').forEach(b=>b.addEventListener('click',e=>{ if(editingId)return; document.querySelectorAll('.type-btn').forEach(btn=>btn.classList.remove('active')); e.target.classList.add('active'); formType=e.target.dataset.type; document.getElementById('formWrapDays').style.display=formType==='habit'?'block':'none'; document.getElementById('formWrapDiff').style.display=formType==='quest'?'block':'none'; document.getElementById('formWrapDate').style.display=formType==='quest'?'block':'none'; }));
+document.querySelectorAll('.day-btn').forEach(b=>b.addEventListener('click',e=>e.target.classList.toggle('active')));
+document.querySelectorAll('.color-opt').forEach(c=>c.addEventListener('click',e=>{ document.querySelectorAll('.color-opt').forEach(el=>el.classList.remove('selected')); e.target.classList.add('selected'); }));
+
+window.openForm = function(id=null) {
+  editingId=id; document.getElementById('formTitle').textContent=id?"EDITAR":"NUEVA MISIÓN"; document.getElementById('standardActions').style.display='flex'; document.getElementById('deleteConfirmActions').style.display='none'; document.getElementById('btnFormDelete').style.display=id?'block':'none';
+  document.getElementById('formName').value=''; document.getElementById('formDiff').value='medium'; document.getElementById('formDate').value=viewDateStr; document.getElementById('formTime').value=''; document.querySelectorAll('.day-btn').forEach(b=>b.classList.add('active')); 
+  if(!id){ formType='habit'; document.querySelectorAll('.type-btn').forEach(b=>{b.classList.remove('active');if(b.dataset.type==='habit')b.classList.add('active');}); }
+  else {
+    const t=G.tasks.find(x=>x.id===id); if(!t)return; formType=t.type; document.querySelectorAll('.type-btn').forEach(b=>{b.classList.remove('active');if(b.dataset.type===t.type)b.classList.add('active');});
+    document.getElementById('formName').value=t.name; document.getElementById('formTime').value=t.time||''; document.querySelectorAll('.color-opt').forEach(c=>{c.classList.remove('selected');if(c.dataset.color===t.color)c.classList.add('selected');});
+    if(t.type==='quest'){ document.getElementById('formDiff').value=t.diff; document.getElementById('formDate').value=t.date; } else { const def=G.habitDefs.find(x=>x.id===t.defId); if(def) document.querySelectorAll('.day-btn').forEach(b=>{if(def.days.includes(parseInt(b.dataset.day)))b.classList.add('active');else b.classList.remove('active');}); }
+  }
+  document.getElementById('formWrapDays').style.display=formType==='habit'?'block':'none'; document.getElementById('formWrapDiff').style.display=formType==='quest'?'block':'none'; document.getElementById('formWrapDate').style.display=formType==='quest'?'block':'none';
+  switchScreen('screen-form');
+}
+function closeForm(){ editingId=null; switchScreen('screen-tasks'); }
+
+document.getElementById('btnGoToForm').addEventListener('click',()=>openForm(null)); document.getElementById('btnFormCancel').addEventListener('click',closeForm);
+document.getElementById('btnFormSave').addEventListener('click',()=>{
+  const name=document.getElementById('formName').value.trim(); if(!name){toast('¡Falta nombre!','red');return;} const time=document.getElementById('formTime').value, color=document.querySelector('.color-opt.selected')?.dataset.color||'#2a4a2a';
+  if(!editingId){
+    if(formType==='quest'){ G.tasks.push({id:G.nextId++,type:'quest',name,diff:document.getElementById('formDiff').value,date:document.getElementById('formDate').value||viewDateStr,time,color,status:'pending'}); }
+    else { const activeDays=Array.from(document.querySelectorAll('.day-btn.active')).map(b=>parseInt(b.dataset.day)); if(activeDays.length===0){toast('¡Selecciona un día!','red');return;} G.habitDefs.push({id:'hd_'+G.nextId++,name,diff:'habit',days:activeDays,color,time}); }
+  } else {
+    const t=G.tasks.find(x=>x.id===editingId);
+    if(t){ if(t.type==='habit'){ const def=G.habitDefs.find(x=>x.id===t.defId); if(def){ def.name=name;def.time=time;def.color=color;def.days=Array.from(document.querySelectorAll('.day-btn.active')).map(b=>parseInt(b.dataset.day)); t.name=name;t.time=time;t.color=color; } } else { t.name=name;t.diff=document.getElementById('formDiff').value;t.date=document.getElementById('formDate').value||t.date;t.time=time;t.color=color; } }
+  }
+  saveState(); renderTasks(); closeForm();
+});
+document.getElementById('btnFormDelete').addEventListener('click',()=>{ if(!editingId)return; const t=G.tasks.find(x=>x.id===editingId); if(t&&t.type==='habit'){document.getElementById('standardActions').style.display='none';document.getElementById('deleteConfirmActions').style.display='flex';} else if(t&&t.type==='quest'){G.tasks=G.tasks.filter(x=>x.id!==editingId);toast('Eliminado','gold');saveState();renderTasks();closeForm();} });
+document.getElementById('btnDeleteToday').addEventListener('click',()=>{ if(!editingId)return; const t=G.tasks.find(x=>x.id===editingId); if(t)t.status='skipped'; toast('Omitido hoy','gold'); saveState();renderTasks();closeForm(); });
+document.getElementById('btnDeleteAll').addEventListener('click',()=>{ if(!editingId)return; const t=G.tasks.find(x=>x.id===editingId); if(t){ G.habitDefs=G.habitDefs.filter(x=>x.id!==t.defId); G.tasks=G.tasks.filter(x=>!(x.defId===t.defId&&(x.status==='pending'||x.status==='skipped'))); } toast('Eliminado','gold'); saveState();renderTasks();closeForm(); });
+document.getElementById('btnDeleteCancel').addEventListener('click',()=>{ document.getElementById('standardActions').style.display='flex'; document.getElementById('deleteConfirmActions').style.display='none'; });
+function toast(msg,type='green'){ const wrap=document.getElementById('toastWrap'); const el=document.createElement('div'); el.className='toast'+(type==='gold'?' gold':type==='red'?' red':''); el.textContent=msg; wrap.appendChild(el); setTimeout(()=>el.remove(),2700); }
+
+/* ============================================================
+   INIT
+============================================================ */
+loadState(); fullRender(); setInterval(checkDailyReset, 60000);
+</script>
+</body>
+</html>
